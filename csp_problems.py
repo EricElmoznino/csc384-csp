@@ -345,28 +345,22 @@ def solve_planes(planes_problem, algo, allsolns,
     '''
 
     # BUILD your CSP here and store it in the varable csp
-    def flight_val(flight):
-        return planes_problem.flights.index(flight)
-
     variables = []
     constraints = []
 
-    legal_order = [[flight_val(f1), flight_val(f2)] for f1, f2 in planes_problem.can_follow]
-    legal_order += [[flight_val(f), -1] for f in planes_problem.flights]
-    legal_order += [[-1, -1]]
+    legal_order = [[f1, f2] for f1, f2 in planes_problem.can_follow]
+    legal_order += [[f, 'None'] for f in planes_problem.flights]
+    legal_order += [['None', 'None']]
 
-    maintenance_flights = [flight_val(f) for f in planes_problem.maintenance_flights]
-    maintenance_flights += [-1]
+    maintenance_flights = [f for f in planes_problem.maintenance_flights]
+    maintenance_flights += ['None']
 
     for p in planes_problem.planes:
         legal_flights = planes_problem.can_fly(p)
-        domain = [flight_val(f) for f in legal_flights] + [-1]
-        flight_sequence = [Variable(p + '_%d' % i, domain) for i in range(len(legal_flights))]
+        domain = [f for f in legal_flights] + ['None']
+        flight_sequence = [Variable(p + '_%d' % i, domain) for i in range(1, len(legal_flights))]
+        flight_sequence = [Variable(p + '_0', planes_problem.can_start(p) + ['None'])] + flight_sequence
         variables += flight_sequence
-
-        # Initial location
-        constraints.append(TableConstraint(p + '_start', [flight_sequence[0]],
-                                           [[flight_val(f)] for f in planes_problem.can_start(p)] + [[-1]]))
 
         # Flight order
         for i in range(0, len(flight_sequence) - 1):
@@ -382,7 +376,7 @@ def solve_planes(planes_problem, algo, allsolns,
 
     # Every flight taken
     for f in planes_problem.flights:
-        constraints.append(NValuesConstraint('flights', variables, [flight_val(f)], 1, 1))
+        constraints.append(NValuesConstraint('flights', variables, [f], 1, 1))
 
     csp = CSP('plane_scheduling', variables, constraints)
 
@@ -397,10 +391,9 @@ def solve_planes(planes_problem, algo, allsolns,
     all_solutions = []
     for s_raw in solutions:
         s = {p: [] for p in planes_problem.planes}
-        for var, val in s_raw:
-            if val == -1:
+        for var, f in s_raw:
+            if f == 'None':
                 continue
-            f = planes_problem.flights[val]
             p, order = var.name().split('_')
             order = int(order)
             s[p].append((order, f))
